@@ -143,7 +143,7 @@ public:
         mCamera = mSceneMgr->createCamera("main");
 
 
-        mCamera->setPosition(700.0f, 100.0f, 0.0f);
+        mCamera->setPosition(0.0f, 100.0f, 700.0f);
         mCamera->lookAt(0.0f, 100.0f, 0.0f);
 
         mCamera->setNearClipDistance(5.0f);
