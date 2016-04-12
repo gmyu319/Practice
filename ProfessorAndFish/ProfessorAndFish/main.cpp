@@ -26,66 +26,69 @@ public:
 class MainListener : public FrameListener {
     OIS::Keyboard *mKeyboard;
     Root* mRoot;
-    SceneNode *mProfessorNode, *mFishNode, *mDummy;
-    float mVelocity = 1.0f;
-    float mDegree = 0.0f;
-    bool beingRotate = false;
+    SceneNode *mProfessorNode, *mFishNode, *mFishCentorNode;
+    enum {
+        RUNNING, 
+        ROTATING
+    };
 
 public:
     MainListener(Root* root, OIS::Keyboard *keyboard) : mKeyboard(keyboard), mRoot(root)
     {
         mProfessorNode = mRoot->getSceneManager("main")->getSceneNode("Professor");
         mFishNode = mRoot->getSceneManager("main")->getSceneNode("Fish");
-        mDummy = mRoot->getSceneManager("main")->getSceneNode("Dummy");
+        mFishCentorNode = mRoot->getSceneManager("main")->getSceneNode("FishCentor");
     }
 
     bool frameStarted(const FrameEvent &evt)
     {
-        if (mProfessorNode->getPosition().z > 250.0f)
-        {
-            beingRotate = true;
-            if (beingRotate)
-            {
-                mDegree += 720.0f *evt.timeSinceLastFrame;
-                mProfessorNode->yaw(Degree(720.0f * evt.timeSinceLastFrame));
+        const static float Professor_Moving_BackwardEnd = -250.0f;
+        const static float Professor_Moving_ForwardEnd = 250.0f;
+        const static float Professor_Rotation_Speed = 360.0f;
+        const static float Fish_Rotation_Speed = 180.0f;
+        static float fProfessorTranslationVelocity = 250.0f;
+        static float fProfessorAccumulatedDegree = 0.0f;
+        static int eProfessorState = RUNNING;
 
-                if (mDegree >= 180.0f)
-                {
-                    beingRotate = false;
-                    mProfessorNode->setPosition(mProfessorNode->getPosition().x, mProfessorNode->getPosition().y, 250.0f);
-                    mVelocity *= -1.0f;
-                }
+        // [update professor]
+        if (RUNNING == eProfessorState)
+        {
+            mProfessorNode->translate(0.0f, 0.0f, fProfessorTranslationVelocity * evt.timeSinceLastFrame);
+        }
+
+        else if (ROTATING == eProfessorState)
+        {
+            fProfessorAccumulatedDegree += Professor_Rotation_Speed * evt.timeSinceLastFrame;
+            mProfessorNode->yaw(Degree(Professor_Rotation_Speed * evt.timeSinceLastFrame));
+
+            if (fProfessorAccumulatedDegree > 180.0f)
+            {
+                fProfessorAccumulatedDegree = 0.0f;
+                eProfessorState = RUNNING;
             }
         }
 
-        if (mProfessorNode->getPosition().z < -250.0f)
+        // [rotate fish]
+        mFishCentorNode->yaw(Degree(-Fish_Rotation_Speed * evt.timeSinceLastFrame));
+        mFishNode->yaw(Degree(-Fish_Rotation_Speed * evt.timeSinceLastFrame));
+
+        // [check boundary]
+        if (Professor_Moving_ForwardEnd < mProfessorNode->getPosition().z)
         {
-            beingRotate = true;
-            if (beingRotate)
-            {
-                mDegree += 720.0f *evt.timeSinceLastFrame;
-                mProfessorNode->yaw(Degree(720.0f *evt.timeSinceLastFrame));
-                if (mDegree >= 360.0f)
-                {
-                    mDegree = 0.0f;
-                    beingRotate = false;
-                    mProfessorNode->setPosition(mProfessorNode->getPosition().x, mProfessorNode->getPosition().y, -250.0f);
-                    mVelocity *= -1.0f;
-                }
-            }
+            mProfessorNode->setPosition(mProfessorNode->getPosition().x, mProfessorNode->getPosition().y, Professor_Moving_ForwardEnd);
+            fProfessorTranslationVelocity *= -1.0f;
+            eProfessorState = ROTATING;
         }
 
-        if (!beingRotate)
+        else if (mProfessorNode->getPosition().z < Professor_Moving_BackwardEnd)
         {
-            mProfessorNode->translate(0.0f, 0.0f, mVelocity);
-            mDummy->translate(0.0f, 0.0f, mVelocity);    
+            mProfessorNode->setPosition(mProfessorNode->getPosition().x, mProfessorNode->getPosition().y, Professor_Moving_BackwardEnd);
+            fProfessorTranslationVelocity *= -1.0f;
+            eProfessorState = ROTATING;
         }
-
-        mDummy->yaw(Degree(720.0f *evt.timeSinceLastFrame));
 
         return true;
     }
-
 };
 
 class LectureApp {
@@ -140,7 +143,7 @@ public:
         mCamera = mSceneMgr->createCamera("main");
 
 
-        mCamera->setPosition(0.0f, 100.0f, 700.0f);
+        mCamera->setPosition(700.0f, 100.0f, 0.0f);
         mCamera->lookAt(0.0f, 100.0f, 0.0f);
 
         mCamera->setNearClipDistance(5.0f);
@@ -168,12 +171,14 @@ public:
         SceneNode* node1 = mSceneMgr->getRootSceneNode()->createChildSceneNode("Professor", Vector3(0.0f, 0.0f, 0.0f));
         node1->attachObject(entity1);
 
-        SceneNode *mDummy = mSceneMgr->getRootSceneNode()->createChildSceneNode("Dummy", Vector3(0.0f, 0.0f, 0.0f));
-
+        SceneNode *mFishCentorNode = node1->createChildSceneNode("FishCentor", Vector3(0.0f, 0.0f, 0.0f));
+        mFishCentorNode->setInheritOrientation(false);
 
         Entity* entity2 = mSceneMgr->createEntity("Fish", "fish.mesh");
-        SceneNode* node2 = mDummy->createChildSceneNode("Fish", Vector3(100.0f, 0.0f, 0.0f));
+        SceneNode* node2 = mFishCentorNode->createChildSceneNode("Fish", Vector3(100.0f, 0.0f, 0.0f));
         node2->setScale(5.0f, 5.0f, 5.0f);
+        node2->rotate(Vector3(0.0f, 1.0f, 0.0f), Degree(90.0f));
+        node2->setInheritOrientation(false);
         node2->attachObject(entity2);
 
         mESCListener = new ESCListener(mKeyboard);
