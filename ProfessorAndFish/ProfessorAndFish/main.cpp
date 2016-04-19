@@ -42,10 +42,10 @@ public:
 
     bool frameStarted(const FrameEvent &evt)
     {
-        const static float Professor_Moving_BackwardEnd = -250.0f;
-        const static float Professor_Moving_ForwardEnd = 250.0f;
-        const static float Professor_Rotation_Speed = 360.0f;
-        const static float Fish_Rotation_Speed = 180.0f;
+        const static float PROFESSOR_MOVING_BACKWARD_END = -250.0f;
+        const static float PROFESSOR_MOVING_FORWARD_END = 250.0f;
+        const static float PROFESSOR_ROTATION_SPEED = 360.0f;
+        const static float FISH_ROTATION_SPEED = 180.0f;
         static float fProfessorTranslationVelocity = 250.0f;
         static float fProfessorAccumulatedDegree = 0.0f;
         static int eProfessorState = RUNNING;
@@ -54,12 +54,28 @@ public:
         if (RUNNING == eProfessorState)
         {
             mProfessorNode->translate(0.0f, 0.0f, fProfessorTranslationVelocity * evt.timeSinceLastFrame);
-        }
 
+            // [check boundary]
+            Vector3 pos = mProfessorNode->getPosition();
+            if (PROFESSOR_MOVING_FORWARD_END < pos.z)
+            {
+                pos.z = PROFESSOR_MOVING_FORWARD_END;
+                mProfessorNode->setPosition(pos);
+                fProfessorTranslationVelocity *= -1.0f;
+                eProfessorState = ROTATING;
+            }
+            else if (pos.z < PROFESSOR_MOVING_BACKWARD_END)
+            {
+                pos.z = PROFESSOR_MOVING_BACKWARD_END;
+                mProfessorNode->setPosition(pos);
+                fProfessorTranslationVelocity *= -1.0f;
+                eProfessorState = ROTATING;
+            }
+        }
         else if (ROTATING == eProfessorState)
         {
-            fProfessorAccumulatedDegree += Professor_Rotation_Speed * evt.timeSinceLastFrame;
-            mProfessorNode->yaw(Degree(Professor_Rotation_Speed * evt.timeSinceLastFrame));
+            fProfessorAccumulatedDegree += PROFESSOR_ROTATION_SPEED * evt.timeSinceLastFrame;
+            mProfessorNode->yaw(Degree(PROFESSOR_ROTATION_SPEED * evt.timeSinceLastFrame));
 
             if (fProfessorAccumulatedDegree > 180.0f)
             {
@@ -69,23 +85,7 @@ public:
         }
 
         // [rotate fish]
-        mFishCentorNode->yaw(Degree(-Fish_Rotation_Speed * evt.timeSinceLastFrame));
-        mFishNode->yaw(Degree(-Fish_Rotation_Speed * evt.timeSinceLastFrame));
-
-        // [check boundary]
-        if (Professor_Moving_ForwardEnd < mProfessorNode->getPosition().z)
-        {
-            mProfessorNode->setPosition(mProfessorNode->getPosition().x, mProfessorNode->getPosition().y, Professor_Moving_ForwardEnd);
-            fProfessorTranslationVelocity *= -1.0f;
-            eProfessorState = ROTATING;
-        }
-
-        else if (mProfessorNode->getPosition().z < Professor_Moving_BackwardEnd)
-        {
-            mProfessorNode->setPosition(mProfessorNode->getPosition().x, mProfessorNode->getPosition().y, Professor_Moving_BackwardEnd);
-            fProfessorTranslationVelocity *= -1.0f;
-            eProfessorState = ROTATING;
-        }
+        mFishCentorNode->yaw(Degree(FISH_ROTATION_SPEED * evt.timeSinceLastFrame));
 
         return true;
     }
@@ -125,7 +125,7 @@ public:
             if (!mRoot->showConfigDialog()) return;
         }
 
-        mWindow = mRoot->initialise(true, "Rotate on Random Axis : Copyleft by Dae-Hyun Lee");
+        mWindow = mRoot->initialise(true, "ProfessorAndFish : Copyleft by Gwang-Min Yu");
 
 
         // ESC key를 눌렀을 경우, 오우거 메인 렌더링 루프의 탈출을 처리
@@ -175,10 +175,8 @@ public:
         mFishCentorNode->setInheritOrientation(false);
 
         Entity* entity2 = mSceneMgr->createEntity("Fish", "fish.mesh");
-        SceneNode* node2 = mFishCentorNode->createChildSceneNode("Fish", Vector3(100.0f, 0.0f, 0.0f));
+        SceneNode* node2 = mFishCentorNode->createChildSceneNode("Fish", Vector3(0.0f, 0.0f, -100.0f));
         node2->setScale(5.0f, 5.0f, 5.0f);
-        node2->rotate(Vector3(0.0f, 1.0f, 0.0f), Degree(90.0f));
-        node2->setInheritOrientation(false);
         node2->attachObject(entity2);
 
         mESCListener = new ESCListener(mKeyboard);
